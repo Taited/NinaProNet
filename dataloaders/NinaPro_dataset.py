@@ -26,6 +26,7 @@ class NinaPro_dataset(Dataset):
             self.patient_num += 1
         # segment the signals from label
         self.parsed_label, self.length = self.__parse_label()
+        self.min, self.max = self.__min_max()
 
     def __len__(self):
         return self.length
@@ -62,14 +63,27 @@ class NinaPro_dataset(Dataset):
             patient_id += 1
         return parsed_label, length
 
+    def __min_max(self):
+        _min = 10
+        _max = 0
+        for data in self.data:
+            if np.min(data) < _min:
+                _min = np.min(data)
+            if np.max(data) > _max:
+                _max = np.max(data)
+        return _min, _max
+
 
 if __name__ == '__main__':
     root = r'D:\Dataset\NinaproEMG'
     myDataset = NinaPro_dataset(root=root)
-    label_sampled = np.zeros([13, 1], dtype=int)
+    label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    length_list = []
     for batch_id, (data, label) in enumerate(myDataset):
         print(batch_id)
         label_sampled[int(label)] += 1
+        length_list.append(data.shape[0])
     print(label_sampled)
-    plt.bar(x=np.arange(0, 13), height=np.transpose(label_sampled))
+    print(np.mean(np.array(length_list)))
+    plt.bar(x=np.arange(0, 13), height=np.array(label_sampled))
     plt.show()
