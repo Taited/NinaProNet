@@ -1,0 +1,44 @@
+[data]
+data_root             = /home/uestc-c1501c/LCTSC
+hr_name               = crop_norm_multi_thresh_4_hr.nii.gz
+mr_name               = crop_norm_multi_thresh_4_mr.nii.gz
+lr_name               = crop_norm_multi_thresh_4_lr.nii.gz
+label_hr_name         = crop_label_hr.nii.gz
+label_mr_name         = crop_label_mr.nii.gz
+label_lr_name         = crop_label_lr.nii.gz
+adapt_transform       = False
+coarseg_name          = False
+concat_coarseg        = False
+batch_size            = 2
+iter_num              = 2000
+train_patch_size      = [16, 120, 120]
+test_patch_size       = [16, 120, 120]
+stride                = [16, 120, 120]
+patch_ratio_dic       = {'hr':4,'mr':2,'lr':1,'label_hr':4, 'label_mr':2, 'label_lr':1}
+
+[network]
+net_type                = MSnet_2
+base_feature_number     = 18
+drop_rate               = 0.5
+dilation                = 1
+depth                   = False
+slice_margin            = 3
+class_num               = 6
+input_channel           = 1
+
+[training]
+load_pretrained_model   = False
+pretrained_model_path   = weights/Model_Genesis/Genesis_Chest_CT.pt
+load_adapt_transform     = False
+pretrained_transform_path   = weights/structseg19_task3/adapt_thresh/Unet_Separate_3/Adapt_transform2_athexp_1_1t_0.8910.pkl
+learning_rate      = 2e-5
+decay              = 1e-4
+maximal_epoch      = 150
+start_iteration    = 0
+train_step         = 1
+test_step          = 1
+print_step         = 80
+random_seed        = 1337
+model_save_prefix  = weights/LCTSC/multi_thresh_4/MSnet_2/MSnet_2
+adapt_trans_save_prefix = weights/LCTSC/adapt_thresh/Unet_Res/Adapt_transform_athexp_0.5
+best_dice          = 0.5
