@@ -1,29 +1,42 @@
 from torch.utils.data import Dataset
+import torch.nn.functional as F
 from scipy.io import loadmat
+from scipy import signal
 import matplotlib.pyplot as plt
 import numpy as np
+import random
+import torch
 import os
 import re
-import random
 
 
 class NinaPro_dataset(Dataset):
-    def __init__(self, root=None):
+    def __init__(self, root=None, transform=None, butterWn=None):
         super(NinaPro_dataset)
         if not os.path.exists(root):
             raise RuntimeError('The file path did not exist.')
         self.root = root
         self.data = []
         self.label = []
+        self.transform = transform
         self.patient_num = 0
         sub_file_names = os.listdir(self.root)
         for name in sub_file_names:
             sample_name = re.findall(r"_(s\d+)", name)[0]
             path = os.path.join(self.root, name, name, sample_name+'_A1_E1.mat')
             matlab_variable_dict = loadmat(path)
-            self.data.append(matlab_variable_dict['emg'])
+            emg = matlab_variable_dict['emg']
+            if butterWn is not None:
+                b, a = signal.butter(2, butterWn)
+                # plt.plot(emg[400:1000, 3])
+                emg = signal.filtfilt(b, a, emg, axis=0)
+                # plt.plot(emg[400:1000, 3])
+                # plt.show()
+                # stop = 1
+            self.data.append(emg)
             self.label.append(matlab_variable_dict['restimulus'])
             self.patient_num += 1
+        self.class_num = np.max(self.label[0]) + 1  # take label 0 into account
         # segment the signals from label
         self.parsed_label, self.length = self.__parse_label()
         self.min, self.max = self.__min_max()
@@ -39,7 +52,11 @@ class NinaPro_dataset(Dataset):
         label_seg_id = random.randint(0, len(self.parsed_label[patient_id]) - 1)
         label = self.parsed_label[patient_id][label_seg_id]
         data = self.data[patient_id][label[0]:label[1], :]
-        return data, self.label[patient_id][label[0]]
+        label = self.onehot(self.label[patient_id][label[0]])
+        sample = {'data': data, 'label': label}
+        if self.transform is not None:
+            sample = self.transform(sample)
+        return sample
 
     def __parse_label(self):
         parsed_label = []
@@ -73,10 +90,54 @@ class NinaPro_dataset(Dataset):
                 _max = np.max(data)
         return _min, _max
 
+    def onehot(self, label_id):
+        label = np.zeros([1, self.class_num], dtype=float)
+        label[label_id] = 1
+        return label
+
+
+class ToTensor(object):
+    def __call__(self, sample):
+        sample['data'], sample['label'] = torch.Tensor(sample['data']), torch.Tensor(sample['label'])
+        sample['data'] = torch.unsqueeze(sample['data'], dim=0)
+        return sample
+
+    def __repr__(self):
+        return self.__class__.__name__ + '()'
+
+
+class Resize(object):
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, sample):
+        sample['data'] = F.interpolate(sample['data'], self.size)
+        return sample
+
+
+class Normalize(object):
+    def __init__(self, mean, std, inplace=False):
+        self.mean = mean
+        self.std = std
+        self.inplace = inplace
+
+    def __call__(self, sample):
+        data = sample['data']
+        for i in range(3):
+            data[:, i, :, :] = (data[:, i, :, :] - self.mean[i]) / self.std[i]
+        sample['data'] = data
+        return sample
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
 
 if __name__ == '__main__':
     root = r'D:\Dataset\NinaproEMG'
-    myDataset = NinaPro_dataset(root=root)
+    cutoff_frequency = 45
+    sampling_frequency = 100
+    wn = 2 * cutoff_frequency / sampling_frequency
+    myDataset = NinaPro_dataset(root=root, butterWn=wn)
     label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     length_list = []
     for batch_id, (data, label) in enumerate(myDataset):

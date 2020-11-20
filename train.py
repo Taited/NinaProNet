@@ -27,7 +27,6 @@ from networks.DeepMedic import DeepMedic
 from losses.loss_function import TestDiceLoss, AttentionExpDiceLoss, BinaryCrossEntropy
 from util.visualization.visualize_loss import dice_visualize
 from util.visualization.show_param import show_param
-from test.test import test_single_case, cal_dice
 from prefetch_generator import BackgroundGenerator
 
 
@@ -110,7 +109,6 @@ def train():
     batch_size = config_data.get('batch_size', 4)
     extra_adapt = True
     double_input = False
-    out_distance = True
     net_type = config_net['net_type']
     class_num = config_net['class_num']
 
