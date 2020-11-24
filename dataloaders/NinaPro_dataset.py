@@ -10,9 +10,9 @@ import os
 import re
 
 
-class NinaPro_dataset(Dataset):
+class NinaProDataset(Dataset):
     def __init__(self, root=None, transform=None, butterWn=None):
-        super(NinaPro_dataset)
+        super(NinaProDataset)
         if not os.path.exists(root):
             raise RuntimeError('The file path did not exist.')
         self.root = root
@@ -47,7 +47,8 @@ class NinaPro_dataset(Dataset):
     def __getitem__(self, item):
         if item >= self.__len__():
             raise IndexError
-        # set img offset
+
+        # # set img offset
         patient_id = random.randint(0, self.patient_num - 1)
         label_seg_id = random.randint(0, len(self.parsed_label[patient_id]) - 1)
         label = self.parsed_label[patient_id][label_seg_id]
@@ -91,7 +92,7 @@ class NinaPro_dataset(Dataset):
         return _min, _max
 
     def onehot(self, label_id):
-        label = np.zeros([1, self.class_num], dtype=float)
+        label = np.zeros(self.class_num, dtype=float)
         label[label_id] = 1
         return label
 
@@ -133,16 +134,17 @@ class Normalize(object):
 
 
 if __name__ == '__main__':
-    root = r'D:\Dataset\NinaproEMG'
+    root = r'E:\Datasets\NinaproEMG'
     cutoff_frequency = 45
     sampling_frequency = 100
     wn = 2 * cutoff_frequency / sampling_frequency
-    myDataset = NinaPro_dataset(root=root, butterWn=wn)
+    myDataset = NinaProDataset(root=root, butterWn=wn)
     label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     length_list = []
-    for batch_id, (data, label) in enumerate(myDataset):
+    for batch_id, sample_batch in enumerate(myDataset):
+        data, label = sample_batch['data'], sample_batch['label']
         print(batch_id)
-        label_sampled[int(label)] += 1
+        label_sampled[int(np.nonzero(label)[0])] += 1
         length_list.append(data.shape[0])
     print(label_sampled)
     print(np.mean(np.array(length_list)))
