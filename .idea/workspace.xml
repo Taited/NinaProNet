@@ -34,7 +34,7 @@
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
   </component>
-  <component name="RunManager" selected="Python.NinaPro_dataset">
+  <component name="RunManager" selected="Python.my_train">
     <configuration name="NinaPro_dataset" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="NinaProNet" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -81,8 +81,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.NinaPro_dataset" />
         <item itemvalue="Python.my_train" />
+        <item itemvalue="Python.NinaPro_dataset" />
       </list>
     </recent_temporary>
   </component>
@@ -106,46 +106,50 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="634" y="155" key="FileChooserDialogImpl/0.0.1920.1040@0.0.1920.1040" timestamp="1605702811665" />
-    <state width="1483" height="364" key="GridCell.Tab.0.bottom" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="1888" height="396" key="GridCell.Tab.0.bottom" timestamp="1606318116088">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.0.bottom/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
-    <state width="1483" height="364" key="GridCell.Tab.0.center" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="1888" height="396" key="GridCell.Tab.0.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116088" />
+    <state width="1888" height="396" key="GridCell.Tab.0.center" timestamp="1606318116088">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.0.center/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
-    <state width="1483" height="364" key="GridCell.Tab.0.left" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="1888" height="396" key="GridCell.Tab.0.center/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116088" />
+    <state width="1888" height="396" key="GridCell.Tab.0.left" timestamp="1606318116088">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.0.left/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
-    <state width="1483" height="364" key="GridCell.Tab.0.right" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="1888" height="396" key="GridCell.Tab.0.left/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116088" />
+    <state width="1888" height="396" key="GridCell.Tab.0.right" timestamp="1606318116088">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.0.right/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
-    <state width="1483" height="364" key="GridCell.Tab.1.bottom" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="1888" height="396" key="GridCell.Tab.0.right/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116088" />
+    <state width="925" height="151" key="GridCell.Tab.1.bottom" timestamp="1606318116084">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.1.bottom/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
-    <state width="1483" height="364" key="GridCell.Tab.1.center" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="925" height="151" key="GridCell.Tab.1.bottom/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116084" />
+    <state width="925" height="151" key="GridCell.Tab.1.center" timestamp="1606318116084">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.1.center/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
-    <state width="1483" height="364" key="GridCell.Tab.1.left" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="925" height="151" key="GridCell.Tab.1.center/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116084" />
+    <state width="925" height="151" key="GridCell.Tab.1.left" timestamp="1606318116084">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.1.left/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
-    <state width="1483" height="364" key="GridCell.Tab.1.right" timestamp="1606212082102">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state width="925" height="151" key="GridCell.Tab.1.left/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116084" />
+    <state width="925" height="151" key="GridCell.Tab.1.right" timestamp="1606318116084">
+      <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="1483" height="364" key="GridCell.Tab.1.right/0.0.1536.824@0.0.1536.824" timestamp="1606212082102" />
-    <state width="1888" height="392" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1605704043699" />
+    <state width="925" height="151" key="GridCell.Tab.1.right/0.0.1920.1040@0.0.1920.1040" timestamp="1606318116084" />
+    <state width="968" height="528" key="XDebugger.FullValuePopup" timestamp="1606314606559">
+      <screen x="0" y="0" width="1920" height="1040" />
+    </state>
+    <state width="968" height="528" key="XDebugger.FullValuePopup/0.0.1920.1040@0.0.1920.1040" timestamp="1606314606559" />
     <state x="497" y="308" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1606209641130">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
@@ -156,28 +160,10 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/dataloaders/NinaPro_dataset.py</url>
-          <line>150</line>
-          <option name="timeStamp" value="2" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/my_train.py</url>
-          <line>13</line>
-          <option name="timeStamp" value="6" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/my_train.py</url>
-          <line>12</line>
-          <option name="timeStamp" value="8" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/dataloaders/NinaPro_dataset.py</url>
-          <line>145</line>
-          <option name="timeStamp" value="15" />
+          <line>146</line>
+          <option name="timeStamp" value="25" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
-  </component>
-  <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/NinaProNet$NinaPro_dataset.coverage" NAME="NinaPro_dataset Coverage Results" MODIFIED="1606211507139" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/dataloaders" />
   </component>
 </project>

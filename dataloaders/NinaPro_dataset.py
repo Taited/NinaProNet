@@ -11,35 +11,39 @@ import re
 
 
 class NinaProDataset(Dataset):
-    def __init__(self, root=None, transform=None, butterWn=None):
+    def __init__(self, root=None, random_sample=1024, window_length=150, overlap=0.6, transform=None, butterWn=None):
         super(NinaProDataset)
         if not os.path.exists(root):
             raise RuntimeError('The file path did not exist.')
         self.root = root
-        self.data = []
-        self.label = []
+        self.window_length = window_length
+        self.overlap = overlap
         self.transform = transform
-        self.patient_num = 0
+        self.data = None
+        self.label = None
+
         sub_file_names = os.listdir(self.root)
         for name in sub_file_names:
             sample_name = re.findall(r"_(s\d+)", name)[0]
             path = os.path.join(self.root, name, name, sample_name+'_A1_E1.mat')
             matlab_variable_dict = loadmat(path)
-            emg = matlab_variable_dict['emg']
-            if butterWn is not None:
-                b, a = signal.butter(2, butterWn)
-                # plt.plot(emg[400:1000, 3])
-                emg = signal.filtfilt(b, a, emg, axis=0)
-                # plt.plot(emg[400:1000, 3])
-                # plt.show()
-                # stop = 1
-            self.data.append(emg)
-            self.label.append(matlab_variable_dict['restimulus'])
-            self.patient_num += 1
-        self.class_num = np.max(self.label[0]) + 1  # take label 0 into account
+            if self.data is None:
+                self.data = matlab_variable_dict['emg']
+                self.label = matlab_variable_dict['restimulus']
+            else:
+                self.data = np.vstack((self.data, matlab_variable_dict['emg']))
+                self.label = np.vstack((self.label, matlab_variable_dict['restimulus']))
+
+        # 巴特沃斯滤波处理
+        if butterWn is not None:
+            b, a = signal.butter(N=2, Wn=butterWn)
+            self.data = signal.filtfilt(b, a, self.data, axis=0)
+
+        self.class_num = np.max(self.label) + 1  # take label 0 into account
         # segment the signals from label
-        self.parsed_label, self.length = self.__parse_label()
-        self.min, self.max = self.__min_max()
+        self.parsed_label = self.parse_label()
+        self.min_signal, self.max_signal = self.min_max_signal()
+        self.length = random_sample
 
     def __len__(self):
         return self.length
@@ -49,47 +53,39 @@ class NinaProDataset(Dataset):
             raise IndexError
 
         # # set img offset
-        patient_id = random.randint(0, self.patient_num - 1)
-        label_seg_id = random.randint(0, len(self.parsed_label[patient_id]) - 1)
-        label = self.parsed_label[patient_id][label_seg_id]
-        data = self.data[patient_id][label[0]:label[1], :]
-        label = self.onehot(self.label[patient_id][label[0]])
+        label_id = random.randint(0, self.class_num - 1)
+        label_seg_id = random.randint(0, len(self.parsed_label[label_id]) - 1)
+        seg_begin, seg_end = self.parsed_label[label_id][label_seg_id]
+        label = np.zeros(1, dtype=float)
+        label[0] = self.label[seg_begin, 0].copy()
+        # label = self.onehot(label)
+        data = self.data[seg_begin:seg_end, :].copy()  #直接通过切片得到的数据是不连续的，不通过copy一下转换成tensor时会报错
+
         sample = {'data': data, 'label': label}
         if self.transform is not None:
             sample = self.transform(sample)
         return sample
 
-    def __parse_label(self):
-        parsed_label = []
-        length = 0
-        patient_id = 1
-        for label in self.label:
-            flag = 0
-            label_seg = [[0]]
-            label_id = 0
-            for i in range(label.shape[0]):
-                if flag == label[i]:
-                    continue
-                label_seg[label_id].append(i - 1)
-                label_id += 1
-                label_seg.append([i])
-                flag = label[i]
-                length += 1
-            label_seg[label_id].append(i)
-            parsed_label.append(label_seg)
-            print('Label of Patient id {} parsed'.format(patient_id))
-            patient_id += 1
-        return parsed_label, length
+    def parse_label(self):
+        parsed_label = [[] for i in range(self.class_num)]  # 初始化一个长度为class_num的二维列表
+        length = self.window_length
+        step = int(length * (1 - self.overlap))
+        begin = 0
+        end = length
+        while end < self.label.shape[0]:
+            segment = self.label[begin:end, 0]
+            # 说明该段不具备label的重叠，载入数据中
+            if len(np.unique(segment)) == 1:
+                label_id = self.label[begin, 0]
+                parsed_label[label_id].append([begin, end])
+            begin += step
+            end += step
+        return parsed_label
 
-    def __min_max(self):
-        _min = 10
-        _max = 0
-        for data in self.data:
-            if np.min(data) < _min:
-                _min = np.min(data)
-            if np.max(data) > _max:
-                _max = np.max(data)
-        return _min, _max
+    def min_max_signal(self):
+        min_signal = np.min(self.data)
+        max_signal = np.max(self.data)
+        return min_signal, max_signal
 
     def onehot(self, label_id):
         label = np.zeros(self.class_num, dtype=float)
@@ -99,8 +95,10 @@ class NinaProDataset(Dataset):
 
 class ToTensor(object):
     def __call__(self, sample):
-        sample['data'], sample['label'] = torch.Tensor(sample['data']), torch.Tensor(sample['label'])
-        sample['data'] = torch.unsqueeze(sample['data'], dim=0)
+        sample['data'], sample['label'] = torch.Tensor(sample['data']), torch.LongTensor(sample['label'])
+        sample['data'] = sample['data'].transpose(0, 1)
+        # sample['data'] = torch.unsqueeze(sample['data'], dim=0)
+        sample['label'] = torch.unsqueeze(sample['label'], dim=0)
         return sample
 
     def __repr__(self):
@@ -134,7 +132,7 @@ class Normalize(object):
 
 
 if __name__ == '__main__':
-    root = r'E:\Datasets\NinaproEMG'
+    root = r'D:\Dataset\NinaproEMG\DB1'
     cutoff_frequency = 45
     sampling_frequency = 100
     wn = 2 * cutoff_frequency / sampling_frequency
@@ -143,8 +141,8 @@ if __name__ == '__main__':
     length_list = []
     for batch_id, sample_batch in enumerate(myDataset):
         data, label = sample_batch['data'], sample_batch['label']
-        print(batch_id)
-        label_sampled[int(np.nonzero(label)[0])] += 1
+        # print(batch_id)
+        label_sampled[int(np.where(label == 1)[0])] += 1
         length_list.append(data.shape[0])
     print(label_sampled)
     print(np.mean(np.array(length_list)))
