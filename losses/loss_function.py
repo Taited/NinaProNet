@@ -66,7 +66,7 @@ class FocalLoss(nn.Module):
         self.one_hot_encoder = One_Hot(n_class).forward
         self.n_class = n_class
 
-    def forward(self, pred,label):
+    def forward(self, pred, label):
         '''
         :param pred: the prediction, batchsize*n_class*depth*length*width
         :param label: the groundtruth, batchsize*depth*length*width

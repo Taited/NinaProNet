@@ -11,13 +11,15 @@ import re
 
 
 class NinaProDataset(Dataset):
-    def __init__(self, root=None, random_sample=1024, window_length=150, overlap=0.6, transform=None, butterWn=None):
+    def __init__(self, root=None, split='train', random_sample=1024, window_length=128, overlap=0.6, transform=None, butterWn=None):
         super(NinaProDataset)
-        if not os.path.exists(root):
+        self.root = os.path.join(root, split)
+        if not os.path.exists(self.root):
             raise RuntimeError('The file path did not exist.')
-        self.root = root
+
         self.window_length = window_length
         self.overlap = overlap
+        self.split = split
         self.transform = transform
         self.data = None
         self.label = None
@@ -42,8 +44,23 @@ class NinaProDataset(Dataset):
         self.class_num = np.max(self.label) + 1  # take label 0 into account
         # segment the signals from label
         self.parsed_label = self.parse_label()
+        # 便于极大极小值归一化
         self.min_signal, self.max_signal = self.min_max_signal()
-        self.length = random_sample
+        self.min_max_scalar()
+
+        # 训练集测试集划分
+        if self.split == 'train':
+            self.length = random_sample
+        elif self.split == 'valid':  # 将所有的信号段拼接在一起，便于getitem按索引读入
+            self.valid_label_seg = []
+            self.valid_label = []
+            for i in range(len(self.parsed_label)):
+                for seg in self.parsed_label[i]:
+                    self.valid_label_seg.append(seg)
+                    self.valid_label.append(i)
+            self.length = len(self.valid_label_seg)
+        else:
+            self.length = random_sample
 
     def __len__(self):
         return self.length
@@ -51,16 +68,20 @@ class NinaProDataset(Dataset):
     def __getitem__(self, item):
         if item >= self.__len__():
             raise IndexError
+        # 测试的时候顺序遍历所有的数据
+        if self.split == 'valid':
+            seg_begin, seg_end = self.valid_label_seg[item]
+            label = np.zeros(1, dtype=float)
+            label[0] = self.valid_label[item]
+        else:
+            # set img offset
+            label_id = random.randint(0, self.class_num - 1)
+            label_seg_id = random.randint(0, len(self.parsed_label[label_id]) - 1)
+            seg_begin, seg_end = self.parsed_label[label_id][label_seg_id]
+            label = np.zeros(1, dtype=float)
+            label[0] = self.label[seg_begin, 0].copy()
 
-        # # set img offset
-        label_id = random.randint(0, self.class_num - 1)
-        label_seg_id = random.randint(0, len(self.parsed_label[label_id]) - 1)
-        seg_begin, seg_end = self.parsed_label[label_id][label_seg_id]
-        label = np.zeros(1, dtype=float)
-        label[0] = self.label[seg_begin, 0].copy()
-        # label = self.onehot(label)
-        data = self.data[seg_begin:seg_end, :].copy()  #直接通过切片得到的数据是不连续的，不通过copy一下转换成tensor时会报错
-
+        data = self.data[seg_begin:seg_end, :].copy()  # 直接通过切片得到的数据是不连续的，不通过copy一下转换成tensor时会报错
         sample = {'data': data, 'label': label}
         if self.transform is not None:
             sample = self.transform(sample)
@@ -86,6 +107,9 @@ class NinaProDataset(Dataset):
         min_signal = np.min(self.data)
         max_signal = np.max(self.data)
         return min_signal, max_signal
+
+    def min_max_scalar(self):
+        self.data = (self.data - self.min_signal) / (self.max_signal - self.min_signal)
 
     def onehot(self, label_id):
         label = np.zeros(self.class_num, dtype=float)
@@ -132,17 +156,17 @@ class Normalize(object):
 
 
 if __name__ == '__main__':
-    root = r'D:\Dataset\NinaproEMG\DB1'
+    root = r'E:\Datasets\NinaproEMG\DB1'
     cutoff_frequency = 45
     sampling_frequency = 100
     wn = 2 * cutoff_frequency / sampling_frequency
-    myDataset = NinaProDataset(root=root, butterWn=wn)
+    myDataset = NinaProDataset(root=root, split='valid', butterWn=wn)
     label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     length_list = []
     for batch_id, sample_batch in enumerate(myDataset):
         data, label = sample_batch['data'], sample_batch['label']
         # print(batch_id)
-        label_sampled[int(np.where(label == 1)[0])] += 1
+        label_sampled[int(label[0])] += 1
         length_list.append(data.shape[0])
     print(label_sampled)
     print(np.mean(np.array(length_list)))
