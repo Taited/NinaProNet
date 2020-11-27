@@ -8,22 +8,7 @@ from dataloaders.Structseg_dataloader import *
 from torch.utils.data import DataLoader
 from util.train_test_func import *
 from util.parse_config import parse_config
-from networks.Unet_Separate_2 import Unet_Separate_2
-from networks.Unet_Separate_3 import Unet_Separate_3
-from networks.Unet_Separate_3_dis import Unet_Separate_3_dis
-from networks.Unet_Separate_3_dis2 import Unet_Separate_3_dis2
-from networks.Unet_Separate_4 import Unet_Separate_4
-from networks.Unet_Separate_5 import Unet_Separate_5
-from networks.Unet_Separate_6 import Unet_Separate_6
-from networks.Unet_Separate_7 import Unet_Separate_7
-from networks.UnetSE_Separate_3 import UnetSE_Separate_3
-from networks.Unet import Unet
 from networks.Adapt_transform import Adapt_transform,Adapt_transform2
-from networks.Unet_adapt_Separate import Unet_adapt_Separate
-from networks.DenseSepUnet import DenseSepUnet
-from networks.Unet_Separate import Unet_Separate
-from networks.Unet_Res import Unet_Res
-from networks.DeepMedic import DeepMedic
 from losses.loss_function import TestDiceLoss, AttentionExpDiceLoss, BinaryCrossEntropy
 from util.visualization.visualize_loss import dice_visualize
 from util.visualization.show_param import show_param
@@ -38,56 +23,12 @@ class DataLoaderX(DataLoader):
 class NetFactory(object):
     @staticmethod
     def create(name):
-        if name == 'Unet':
-            return Unet
-
-        if name == 'Unet_Res':
-            return Unet_Res
-
-        if name == 'Unet_Separate':
-            return Unet_Separate
-
-        if name == 'Unet_Separate_2':
-            return Unet_Separate_2
-
-        if name == 'Unet_Separate_3':
-            return Unet_Separate_3
-
-        if name == 'Unet_Separate_4':
-            return Unet_Separate_4
-
-        if name == 'Unet_Separate_5':
-            return Unet_Separate_5
-
-        if name == 'Unet_Separate_6':
-            return Unet_Separate_6
-
-        if name == 'Unet_Separate_7':
-            return Unet_Separate_7
-
-        if name == 'UnetSE_Separate_3':
-            return UnetSE_Separate_3
-
-        if name == 'DenseSepUnet':
-            return DenseSepUnet
-
-        if name == 'Unet_Separate_3_dis':
-            return Unet_Separate_3_dis
-
-        if name == 'Unet_Separate_3_dis2':
-            return Unet_Separate_3_dis2
-
-        if name == 'DeepMedic':
-            return DeepMedic
-
         if name == 'Adapt_transform':
             return Adapt_transform
 
         if name == 'Adapt_transform2':
             return Adapt_transform2
 
-        if name == 'Unet_adapt_Separate':
-            return Unet_adapt_Separate
         # add your own networks here
         print('unsupported network:', name)
         exit()

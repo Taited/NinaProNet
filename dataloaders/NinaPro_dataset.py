@@ -41,12 +41,14 @@ class NinaProDataset(Dataset):
             b, a = signal.butter(N=2, Wn=butterWn)
             self.data = signal.filtfilt(b, a, self.data, axis=0)
 
+        self.mean = np.mean(self.data, axis=0)
+        self.std = np.std(self.data, axis=0)
         self.class_num = np.max(self.label) + 1  # take label 0 into account
         # segment the signals from label
         self.parsed_label = self.parse_label()
-        # 便于极大极小值归一化
+        # # 便于极大极小值归一化
         self.min_signal, self.max_signal = self.min_max_signal()
-        self.min_max_scalar()
+        # self.min_max_scalar()
 
         # 训练集测试集划分
         if self.split == 'train':
@@ -82,7 +84,7 @@ class NinaProDataset(Dataset):
             label[0] = self.label[seg_begin, 0].copy()
 
         data = self.data[seg_begin:seg_end, :].copy()  # 直接通过切片得到的数据是不连续的，不通过copy一下转换成tensor时会报错
-        sample = {'data': data, 'label': label}
+        sample = {'data': data, 'label': label, 'mean': self.mean, 'std': self.std}
         if self.transform is not None:
             sample = self.transform(sample)
         return sample
@@ -121,7 +123,6 @@ class ToTensor(object):
     def __call__(self, sample):
         sample['data'], sample['label'] = torch.Tensor(sample['data']), torch.LongTensor(sample['label'])
         sample['data'] = sample['data'].transpose(0, 1)
-        # sample['data'] = torch.unsqueeze(sample['data'], dim=0)
         sample['label'] = torch.unsqueeze(sample['label'], dim=0)
         return sample
 
@@ -139,15 +140,12 @@ class Resize(object):
 
 
 class Normalize(object):
-    def __init__(self, mean, std, inplace=False):
-        self.mean = mean
-        self.std = std
-        self.inplace = inplace
-
     def __call__(self, sample):
         data = sample['data']
-        for i in range(3):
-            data[:, i, :, :] = (data[:, i, :, :] - self.mean[i]) / self.std[i]
+        mean = sample['mean']
+        std = sample['std']
+        for i in range(data.shape[1]):
+            data[:, i] = (data[:, i] - mean[i]) / std[i]
         sample['data'] = data
         return sample
 
@@ -160,7 +158,7 @@ if __name__ == '__main__':
     cutoff_frequency = 45
     sampling_frequency = 100
     wn = 2 * cutoff_frequency / sampling_frequency
-    myDataset = NinaProDataset(root=root, split='valid', butterWn=wn)
+    myDataset = NinaProDataset(root=root, split='valid', butterWn=wn, transform=Normalize())
     label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     length_list = []
     for batch_id, sample_batch in enumerate(myDataset):
