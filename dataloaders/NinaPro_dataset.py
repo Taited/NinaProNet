@@ -90,7 +90,9 @@ class NinaProDataset(Dataset):
         return sample
 
     def parse_label(self):
-        parsed_label = [[] for i in range(self.class_num)]  # 初始化一个长度为class_num的二维列表
+        if self.split == 'valid':
+            self.overlap = 0
+        parsed_label = [[] for _ in range(self.class_num)]  # 初始化一个长度为class_num的二维列表
         length = self.window_length
         step = int(length * (1 - self.overlap))
         begin = 0
@@ -161,6 +163,16 @@ if __name__ == '__main__':
     myDataset = NinaProDataset(root=root, split='valid', butterWn=wn, transform=Normalize())
     label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     length_list = []
+
+    for i in range(len(myDataset.parsed_label)):
+        length = len(myDataset.parsed_label[i])
+        label_sampled[i] += length
+    label_sampled /= np.sum(label_sampled)
+    plt.subplot(2, 1, 1)
+    plt.bar(x=np.arange(0, 13), height=np.array(label_sampled), label='original label number distribution')
+    plt.gca().set(xlim=(0, 13), xlabel='label id', ylabel='ratio')
+    plt.legend()
+    label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     for batch_id, sample_batch in enumerate(myDataset):
         data, label = sample_batch['data'], sample_batch['label']
         # print(batch_id)
@@ -168,5 +180,10 @@ if __name__ == '__main__':
         length_list.append(data.shape[0])
     print(label_sampled)
     print(np.mean(np.array(length_list)))
-    plt.bar(x=np.arange(0, 13), height=np.array(label_sampled))
-    plt.show()
+    # plt.subplot(2, 1, 2)
+    # label_sampled /= np.sum(label_sampled)
+    # plt.bar(x=np.arange(0, 13), height=np.array(label_sampled), label='sampleed label number distribution')
+    # plt.gca().set(xlim=(0, 13), ylim=(0.0, 0.10), xlabel='label id', ylabel='ratio')
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.show()
