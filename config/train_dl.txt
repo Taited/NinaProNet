@@ -2,14 +2,14 @@
 data_root             = E:\Datasets\NinaproEMG\DB1
 image_name            = crop_norm_multi_thresh_4.nii.gz
 label_name            = crop_label.nii.gz
-cutoff_frequency            = 1
-sampling_frequency            = 100
-window_length    = 256
-batch_size            = 512
-iter_num              = 51200
+cutoff_frequency      = 1
+sampling_frequency    = 100
+window_length         = 256
+batch_size            = 256
+iter_num              = 25600
 
 [network]
-net_type                = Unet
+net_type                = NinaProNet
 base_feature_number     = 16
 drop_rate               = 0.5
 dilation                = 1
@@ -29,4 +29,4 @@ train_step         = 1
 test_step          = 1
 print_step         = 10
 model_save_prefix  = weights/train_model
-best_accuracy      = 0
+best_accuracy      = 0.6

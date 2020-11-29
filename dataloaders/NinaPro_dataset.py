@@ -155,6 +155,63 @@ class Normalize(object):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 
+class FeatureExtractor(object):
+    def __init__(self):
+        # 获取类内的所有方法名字
+        self.method_list = dir(self)
+
+    def __call__(self, sample):
+        feature_list = []
+        # 由于继承了nn.module, 里面有一些方法不是计算特征的，要忽略掉
+        for method in self.method_list:
+            if method[0:2] == 'f_':
+                func = getattr(self, method)
+                feature_list.append(func(sample['data']))
+        feature = np.array(feature_list)
+        sample['data'] = feature.flatten()
+        return sample
+
+
+    @staticmethod
+    def f_RMS(d):
+        return np.sqrt(np.mean(np.square(d), axis=0))
+
+    @staticmethod
+    def f_MAV(d):
+        return np.mean(np.abs(d), axis=0)
+
+    @staticmethod  # 过零点次数
+    def f_ZC(d):
+        nZC = np.zeros(d.shape[1])
+        th = np.mean(d, axis=0)
+        th = np.abs(th)
+        for i in range(1, d.shape[0]):
+            for j in range(d.shape[1]):
+                if d[i - 1, j] < th[j] < d[i, j]:
+                    nZC[j] += 1
+                elif d[i - 1, j] > th[j] > d[i, j]:
+                    nZC[j] += 1
+        return nZC / d.shape[0]
+
+    @staticmethod  # slope sign change
+    def f_SSC(d):
+        nSSC = np.zeros(d.shape[1])
+        th = np.mean(d, axis=0)
+        th = np.abs(th)
+        for i in range(2, d.shape[0]):
+            diff1 = d[i] - d[i - 1]
+            diff2 = d[i - 1] - d[i - 2]
+            for j in range(d.shape[1]):
+                if np.abs(diff1[j]) > th[j] and np.abs(diff2[j]) > th[j] and (diff1[j] * diff2[j]) < 0:
+                    nSSC[j] += 1
+        return nSSC / d.shape[0]
+
+    @staticmethod
+    def f_VAR(d):
+        feature = np.var(d, axis=0)
+        return feature
+
+
 if __name__ == '__main__':
     root = r'E:\Datasets\NinaproEMG\DB1'
     cutoff_frequency = 45

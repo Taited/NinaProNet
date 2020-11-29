@@ -1,0 +1,24 @@
+[data]
+data_root             = E:\Datasets\NinaproEMG\DB1
+cutoff_frequency      = 1
+sampling_frequency    = 100
+window_length         = 256
+train_batch_size      = 8000
+iter_num              = 8000
+
+[network]
+net_type              = SVM
+class_num             = 13
+
+[training]
+load_weight        = False
+model_path         = weights/t
+learning_rate      = 1e-5
+decay              = 1e-4
+maximal_epoch      = 1
+start_iteration    = 0
+train_step         = 1
+test_step          = 1
+print_step         = 10
+model_save_prefix  = weights/train_model
+best_accuracy      = 0.6
