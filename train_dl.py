@@ -3,6 +3,7 @@ from prefetch_generator import BackgroundGenerator
 from dataloaders.NinaPro_dataset import *
 from util.parse_config import parse_config
 from torch.utils.data import DataLoader
+from losses.loss_function import FocalLossV2, FocalLoss
 from networks.NetFactory import NetFactory
 import torchvision.transforms as tt
 import torch.optim as optim
@@ -72,12 +73,12 @@ def train(config):
                                    butterWn=wn,
                                    window_length=window_length,
                                    random_sample=iter_num,
-                                   transform=tt.Compose([Normalize(), ToTensor()]))
+                                   transform=tt.Compose([Normalize(), ToTensor2D()]))
     valid_dataset = NinaProDataset(root=root,
                                    split='valid',
                                    butterWn=wn,
                                    window_length=window_length,
-                                   transform=tt.Compose([Normalize(), ToTensor()]))
+                                   transform=tt.Compose([Normalize(), ToTensor2D()]))
     trainLoader = DataLoaderX(train_dataset, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True)
     validLoader = DataLoaderX(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True)
 
@@ -91,8 +92,9 @@ def train(config):
 
     # initiate metrics and loss func
     evaluator = AccuracyMetrics(train_dataset.class_num)
-    loss_func = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters())
+    loss_func2 = nn.CrossEntropyLoss()
+    loss_func = FocalLoss()
+    optimizer = optim.Adam(net.parameters(), lr=1e-3)
     show_loss = loss_visualize()
 
     # train begin
@@ -104,16 +106,17 @@ def train(config):
             data, label = sample['data'].to(device), sample['label'].to(device)
             prediction = net(data)
             evaluator.get_data(prediction, label.squeeze(1).squeeze(1))
-            train_loss = loss_func(prediction, label.squeeze(1).squeeze(1))
+            train_loss = loss_func2(prediction, label.squeeze(1).squeeze(1))
+                         # loss_func2(prediction, label.squeeze(1).squeeze(1))
             train_batch_loss += train_loss
-            train_loss = torch.abs(train_loss - 0.4) + 0.4
+            # train_loss = torch.abs(train_loss - 0.4) + 0.4  # trick: flood loss
             optimizer.zero_grad()  # 梯度归零
             train_loss.backward()  # 反向传播
             optimizer.step()  # 更新参数
             if i % print_step == 0:
                 print('\tbatch id: {} train_loss: {}'.format(i, train_loss.cpu().detach().numpy()))
         train_batch_loss = train_batch_loss.cpu().detach().numpy() / (i + 1)
-        train_accuracy, _ = evaluator.evaluate()
+        train_accuracy, train_class_accuracy = evaluator.evaluate()
         print('{} epoch: {} train batch loss: {} train accuracy: {}'.
               format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                      epoch, train_batch_loss, train_accuracy))
@@ -130,7 +133,7 @@ def train(config):
                 valid_loss = loss_func(prediction, label.squeeze(1).squeeze(1))
                 valid_batch_loss += valid_loss
         valid_batch_loss = valid_batch_loss.cpu().detach().numpy() / (i + 1)
-        valid_accuracy, _ = evaluator.evaluate()
+        valid_accuracy, valid_class_accuracy = evaluator.evaluate()
         print('{} epoch: {} valid batch loss: {} valid accuracy: {}'.
               format(time.strftime("%Y-%m-%d %H:%M:%S"), epoch, valid_batch_loss, valid_accuracy))
 
@@ -138,6 +141,15 @@ def train(config):
         epoch_metrics = {'train': train_batch_loss, 'valid': valid_batch_loss,
                          'train_accuracy': train_accuracy, 'valid_accuracy': valid_accuracy}
         show_loss.plot_loss(epoch, epoch_metrics)
+
+        # plot final class accuracy
+        if epoch == epochs - 1:
+            plt.plot(train_class_accuracy, label='train class accuracy')
+            plt.plot(valid_class_accuracy, label='valid class accuracy')
+            plt.title('Net type: {} Batch size: {}'.format(net_name, batch_size))
+            plt.gca().set(xlim=(0, 13), xlabel='label id', ylabel='accuracy')
+            plt.legend()
+            plt.show()
 
         # 模型保存
         '当前批次模型储存'

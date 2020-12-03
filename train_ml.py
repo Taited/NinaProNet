@@ -100,7 +100,7 @@ def train(config):
             net.fit(data, label)
             prediction = net.predict(data)
             evaluator.get_prediction(prediction, label.squeeze(1))
-        train_accuracy, _ = evaluator.evaluate()
+        train_accuracy, train_class_accuracy = evaluator.evaluate()
         print('{}  train accuracy: {}'.
               format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), train_accuracy))
 
@@ -110,7 +110,13 @@ def train(config):
             data, label = sample['data'], sample['label']
             prediction = net.predict(data)
             evaluator.get_prediction(prediction, label.squeeze(1))
-        valid_accuracy, _ = evaluator.evaluate()
+        valid_accuracy, valid_class_accuracy = evaluator.evaluate()
+        plt.plot(train_class_accuracy, label='train class accuracy')
+        plt.plot(valid_class_accuracy, label='valid class accuracy')
+        plt.title('SVM')
+        plt.gca().set(xlim=(0, 13), xlabel='label id', ylabel='accuracy')
+        plt.legend()
+        plt.show()
         print('{} valid accuracy: {}'.
               format(time.strftime("%Y-%m-%d %H:%M:%S"), valid_accuracy))
 

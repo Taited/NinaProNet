@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from scipy.io import loadmat
 from scipy import signal
 import matplotlib.pyplot as plt
+from scipy.fftpack import fft, ifft
 import numpy as np
 import random
 import torch
@@ -90,8 +91,8 @@ class NinaProDataset(Dataset):
         return sample
 
     def parse_label(self):
-        if self.split == 'valid':
-            self.overlap = 0
+        # if self.split == 'valid':
+        #     self.overlap = 0
         parsed_label = [[] for _ in range(self.class_num)]  # 初始化一个长度为class_num的二维列表
         length = self.window_length
         step = int(length * (1 - self.overlap))
@@ -125,6 +126,18 @@ class ToTensor(object):
     def __call__(self, sample):
         sample['data'], sample['label'] = torch.Tensor(sample['data']), torch.LongTensor(sample['label'])
         sample['data'] = sample['data'].transpose(0, 1)
+        sample['label'] = torch.unsqueeze(sample['label'], dim=0)
+        return sample
+
+    def __repr__(self):
+        return self.__class__.__name__ + '()'
+
+
+class ToTensor2D(object):
+    def __call__(self, sample):
+        sample['data'], sample['label'] = torch.Tensor(sample['data']), torch.LongTensor(sample['label'])
+        sample['data'] = sample['data'].transpose(0, 1)
+        sample['data'] = sample['data'].unsqueeze(0)
         sample['label'] = torch.unsqueeze(sample['label'], dim=0)
         return sample
 
@@ -210,6 +223,23 @@ class FeatureExtractor(object):
     def f_VAR(d):
         feature = np.var(d, axis=0)
         return feature
+
+    # @staticmethod
+    # def f_fft(d):
+    #     y = fft(d[:, 1])
+    #     y_real = y.real
+    #     y_imag = y.imag
+    #     yf = abs(y)
+    #     plt.subplot(411)
+    #     plt.plot(y_real)
+    #     plt.subplot(412)
+    #     plt.plot(y_imag)
+    #     plt.subplot(413)
+    #     plt.plot(yf)
+    #     plt.subplot(414)
+    #     plt.plot(d[:, 1])
+    #     plt.show()
+    #     return yf
 
 
 if __name__ == '__main__':

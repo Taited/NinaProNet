@@ -572,3 +572,148 @@ class InteractLcross(nn.Module):
         Lcross = Lcross / torch.sum(label_sum)
 
         return Lcross
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.cuda.amp as amp
+
+
+##
+# version 1: use torch.autograd
+class FocalLossV1(nn.Module):
+
+    def __init__(self,
+                 alpha=0.25,
+                 gamma=2,
+                 reduction='mean',):
+        super(FocalLossV1, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+        self.crit = nn.BCEWithLogitsLoss(reduction='none')
+
+    def forward(self, logits, label):
+        '''
+        logits and label have same shape, and label data type is long
+        args:
+            logits: tensor of shape (N, ...)
+            label: tensor of shape(N, ...)
+        '''
+
+        # compute loss
+        logits = logits.float() # use fp32 if logits is fp16
+        with torch.no_grad():
+            alpha = torch.empty_like(logits).fill_(1 - self.alpha)
+            alpha[label == 1] = self.alpha
+
+        probs = torch.sigmoid(logits)
+        pt = torch.where(label == 1, probs, 1 - probs)
+        ce_loss = self.crit(logits, label.float())
+        loss = (alpha * torch.pow(1 - pt, self.gamma) * ce_loss)
+        if self.reduction == 'mean':
+            loss = loss.mean()
+        if self.reduction == 'sum':
+            loss = loss.sum()
+        return loss
+
+
+##
+# version 2: user derived grad computation
+class FocalSigmoidLossFuncV2(torch.autograd.Function):
+    '''
+    compute backward directly for better numeric stability
+    '''
+    @staticmethod
+    @amp.custom_fwd
+    def forward(ctx, logits, label, alpha, gamma):
+        logits = logits.float()
+        coeff = torch.empty_like(logits).fill_(1 - alpha)
+        coeff[label == 1] = alpha
+
+        probs = torch.sigmoid(logits)
+        log_probs = torch.where(logits >= 0,
+                F.softplus(logits, -1, 50),
+                logits - F.softplus(logits, 1, 50))
+        log_1_probs = torch.where(logits >= 0,
+                -logits + F.softplus(logits, -1, 50),
+                -F.softplus(logits, 1, 50))
+        probs_gamma = probs ** gamma
+        probs_1_gamma = (1. - probs) ** gamma
+
+        ctx.vars = (coeff, probs, log_probs, log_1_probs, probs_gamma,
+                probs_1_gamma, label, gamma)
+
+        term1 = probs_1_gamma * log_probs
+        term2 = probs_gamma * log_1_probs
+        loss = torch.where(label == 1, term1, term2).mul_(coeff).neg_()
+        return loss
+
+    @staticmethod
+    @amp.custom_bwd
+    def backward(ctx, grad_output):
+        '''
+        compute gradient of focal loss
+        '''
+        (coeff, probs, log_probs, log_1_probs, probs_gamma,
+                probs_1_gamma, label, gamma) = ctx.vars
+
+        term1 = (1. - probs - gamma * probs * log_probs).mul_(probs_1_gamma).neg_()
+        term2 = (probs - gamma * (1. - probs) * log_1_probs).mul_(probs_gamma)
+
+        grads = torch.where(label == 1, term1, term2).mul_(coeff).mul_(grad_output)
+        return grads, None, None, None
+
+
+class FocalLossV2(nn.Module):
+    '''
+    This use better formula to compute the gradient, which has better numeric stability
+    '''
+    def __init__(self,
+                 alpha=0.25,
+                 gamma=2,
+                 reduction='mean'):
+        super(FocalLossV2, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, logits, label):
+        loss = FocalSigmoidLossFuncV2.apply(logits, label, self.alpha, self.gamma)
+        if self.reduction == 'mean':
+            loss = loss.mean()
+        if self.reduction == 'sum':
+            loss = loss.sum()
+        return loss
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=0, alpha=None, size_average=True):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        if isinstance(alpha,(float,int)): self.alpha = torch.Tensor([alpha,1-alpha])
+        if isinstance(alpha,list): self.alpha = torch.Tensor(alpha)
+        self.size_average = size_average
+
+    def forward(self, input, target):
+        if input.dim()>2:
+            input = input.view(input.size(0),input.size(1),-1)  # N,C,H,W => N,C,H*W
+            input = input.transpose(1,2)    # N,C,H*W => N,H*W,C
+            input = input.contiguous().view(-1,input.size(2))   # N,H*W,C => N*H*W,C
+        target = target.view(-1,1)
+
+        logpt = F.log_softmax(input)
+        logpt = logpt.gather(1,target)
+        logpt = logpt.view(-1)
+        pt = Variable(logpt.data.exp())
+
+        if self.alpha is not None:
+            if self.alpha.type()!=input.data.type():
+                self.alpha = self.alpha.type_as(input.data)
+            at = self.alpha.gather(0,target.data.view(-1))
+            logpt = logpt * Variable(at)
+
+        loss = -1 * (1-pt)**self.gamma * logpt
+        if self.size_average: return loss.mean()
+        else: return loss.sum()
