@@ -12,30 +12,44 @@ import re
 
 
 class NinaProDataset(Dataset):
-    def __init__(self, root=None, split='train', random_sample=1024, window_length=128, overlap=0.6, transform=None, butterWn=None):
+    def __init__(self, root=None, databases=['DB1'], experiments=['E1', 'E2', 'E3'], split='train',
+                 random_sample=1024, window_length=128, overlap=0.6, transform=None, butterWn=None):
         super(NinaProDataset)
-        self.root = os.path.join(root, split)
-        if not os.path.exists(self.root):
-            raise RuntimeError('The file path did not exist.')
-
+        # load parameters
+        self.databases = databases
+        self.experiments = experiments
         self.window_length = window_length
         self.overlap = overlap
         self.split = split
         self.transform = transform
         self.data = None
         self.label = None
+        self.base_class_num = {'E1': 0, 'E2': 12, 'E3': 17 + 12}
 
-        sub_file_names = os.listdir(self.root)
-        for name in sub_file_names:
-            sample_name = re.findall(r"_(s\d+)", name)[0]
-            path = os.path.join(self.root, name, name, sample_name+'_A1_E1.mat')
-            matlab_variable_dict = loadmat(path)
-            if self.data is None:
-                self.data = matlab_variable_dict['emg']
-                self.label = matlab_variable_dict['restimulus']
-            else:
-                self.data = np.vstack((self.data, matlab_variable_dict['emg']))
-                self.label = np.vstack((self.label, matlab_variable_dict['restimulus']))
+        # choose database
+        for database in self.databases:
+            self.root = os.path.join(root, database)
+            if not os.path.exists(self.root):
+                raise RuntimeError('The file path did not exist.')
+            # traverse patients
+            sub_file_names = os.listdir(self.root)
+            for name in sub_file_names:
+                sample_name = re.findall(r"_(s\d+)", name)[0]
+                for experiment in self.experiments:
+                    if database == 'DB1':
+                        path = os.path.join(self.root, name, name, sample_name+'_A1_' + experiment + '.mat')
+                    else:
+                        path = os.path.join(self.root, name, sample_name + '_{}_A1.mat'.format(experiment))
+                    matlab_variable_dict = loadmat(path)
+                    data = matlab_variable_dict['emg']
+                    label = matlab_variable_dict['restimulus']
+                    label[np.where(label != 0)] += self.base_class_num[experiment]
+                    if self.data is None:
+                        self.data = data
+                        self.label = label
+                    else:
+                        self.data = np.vstack((self.data, data))
+                        self.label = np.vstack((self.label, label))
 
         # 巴特沃斯滤波处理
         if butterWn is not None:
@@ -243,12 +257,12 @@ class FeatureExtractor(object):
 
 
 if __name__ == '__main__':
-    root = r'E:\Datasets\NinaproEMG\DB1'
+    root = r'E:\Datasets\NinaproDataset'
     cutoff_frequency = 45
     sampling_frequency = 100
     wn = 2 * cutoff_frequency / sampling_frequency
     myDataset = NinaProDataset(root=root, split='valid', butterWn=wn, transform=Normalize())
-    label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    label_sampled = np.linspace(1, myDataset.class_num, myDataset.class_num)
     length_list = []
 
     for i in range(len(myDataset.parsed_label)):
@@ -256,21 +270,20 @@ if __name__ == '__main__':
         label_sampled[i] += length
     label_sampled /= np.sum(label_sampled)
     plt.subplot(2, 1, 1)
-    plt.bar(x=np.arange(0, 13), height=np.array(label_sampled), label='original label number distribution')
-    plt.gca().set(xlim=(0, 13), xlabel='label id', ylabel='ratio')
+    plt.bar(x=np.arange(0, myDataset.class_num), height=label_sampled, label='original label number distribution')
+    plt.gca().set(xlim=(0, myDataset.class_num), xlabel='label id', ylabel='ratio')
     plt.legend()
-    label_sampled = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    label_sampled = np.linspace(1, myDataset.class_num, myDataset.class_num)
     for batch_id, sample_batch in enumerate(myDataset):
         data, label = sample_batch['data'], sample_batch['label']
-        # print(batch_id)
         label_sampled[int(label[0])] += 1
         length_list.append(data.shape[0])
     print(label_sampled)
     print(np.mean(np.array(length_list)))
-    # plt.subplot(2, 1, 2)
-    # label_sampled /= np.sum(label_sampled)
-    # plt.bar(x=np.arange(0, 13), height=np.array(label_sampled), label='sampleed label number distribution')
-    # plt.gca().set(xlim=(0, 13), ylim=(0.0, 0.10), xlabel='label id', ylabel='ratio')
-    # plt.legend()
-    # plt.tight_layout()
-    # plt.show()
+    plt.subplot(2, 1, 2)
+    label_sampled /= np.sum(label_sampled)
+    plt.bar(x=np.arange(0, myDataset.class_num), height=label_sampled, label='sampleed label number distribution')
+    plt.gca().set(xlim=(0, myDataset.class_num), ylim=(0.0, 0.10), xlabel='label id', ylabel='ratio')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
