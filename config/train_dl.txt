@@ -2,12 +2,13 @@
 data_root             = E:\Datasets\NinaproDataset
 cutoff_frequency      = 1
 sampling_frequency    = 100
-window_length         = 256
+window_length         = 16
+overlap               = 0
 batch_size            = 256
-iter_num              = 128000
+iter_num              = 25600
 
 [network]
-net_type                = GengNet
+net_type                = NinaProNet
 base_feature_number     = 64
 drop_rate               = 0.5
 dilation                = 1

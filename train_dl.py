@@ -52,6 +52,7 @@ def train(config):
     batch_size = config_data['batch_size']
     iter_num = config_data['iter_num']
     root = config_data['data_root']
+    overlap = config_data['overlap']
 
     # load net config
     config_net = config['network']
@@ -73,12 +74,13 @@ def train(config):
                                    butterWn=wn,
                                    window_length=window_length,
                                    random_sample=iter_num,
-                                   transform=tt.Compose([Normalize(), ToTensor2D()]))
+                                   overlap=overlap,
+                                   transform=tt.Compose([Normalize(), ToTensor()]))
     valid_dataset = NinaProDataset(root=root,
                                    split='valid',
                                    butterWn=wn,
                                    window_length=window_length,
-                                   transform=tt.Compose([Normalize(), ToTensor2D()]))
+                                   transform=tt.Compose([Normalize(), ToTensor()]))
     trainLoader = DataLoaderX(train_dataset, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True)
     validLoader = DataLoaderX(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True)
 
@@ -92,8 +94,8 @@ def train(config):
 
     # initiate metrics and loss func
     evaluator = AccuracyMetrics(train_dataset.class_num)
-    loss_func2 = nn.CrossEntropyLoss()
-    loss_func = FocalLoss()
+    loss_func = nn.CrossEntropyLoss()
+    # loss_func = FocalLoss()
     optimizer = optim.Adam(net.parameters(), lr=1e-3)
     show_loss = loss_visualize()
 
@@ -106,8 +108,7 @@ def train(config):
             data, label = sample['data'].to(device), sample['label'].to(device)
             prediction = net(data)
             evaluator.get_data(prediction, label.squeeze(1).squeeze(1))
-            train_loss = loss_func2(prediction, label.squeeze(1).squeeze(1))
-                         # loss_func2(prediction, label.squeeze(1).squeeze(1))
+            train_loss = loss_func(prediction, label.squeeze(1).squeeze(1))
             train_batch_loss += train_loss
             # train_loss = torch.abs(train_loss - 0.4) + 0.4  # trick: flood loss
             optimizer.zero_grad()  # 梯度归零

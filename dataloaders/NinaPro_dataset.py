@@ -12,8 +12,8 @@ import re
 
 
 class NinaProDataset(Dataset):
-    def __init__(self, root=None, databases=['DB1'], experiments=['E1', 'E2', 'E3'], split='train',
-                 random_sample=1024, window_length=128, overlap=0.6, transform=None, butterWn=None):
+    def __init__(self, root=None, databases=['DB2'], experiments=['E1', 'E2', 'E3'], split='train',
+                 random_sample=1024, window_length=128, overlap=0.6, transform=None, is_filter=False):
         super(NinaProDataset)
         # load parameters
         self.databases = databases
@@ -21,44 +21,86 @@ class NinaProDataset(Dataset):
         self.window_length = window_length
         self.overlap = overlap
         self.split = split
+        self.split_ratio = 0.75
         self.transform = transform
         self.data = None
         self.label = None
-        self.base_class_num = {'E1': 0, 'E2': 12, 'E3': 17 + 12}
+        self.base_class_num = {'E1': 13, 'E2': 17, 'E3': 22}
+        self.class_num = 0  # since take label 0 into account, beginning with 1
+        for experiment_type in self.experiments:
+            self.class_num += self.base_class_num[experiment_type]
 
         # choose database
         for database in self.databases:
+            print('Processing ' + database)
             self.root = os.path.join(root, database)
             if not os.path.exists(self.root):
                 raise RuntimeError('The file path did not exist.')
             # traverse patients
             sub_file_names = os.listdir(self.root)
             for name in sub_file_names:
-                sample_name = re.findall(r"_(s\d+)", name)[0]
+                print('\tProcessing entity ' + name)
+                sample_name = re.findall(r'_(s\d+)', name)[0]
+                # choose experiments
+                label = None  # collecting experiments
                 for experiment in self.experiments:
                     if database == 'DB1':
                         path = os.path.join(self.root, name, name, sample_name+'_A1_' + experiment + '.mat')
                     else:
-                        path = os.path.join(self.root, name, sample_name + '_{}_A1.mat'.format(experiment))
+                        path = os.path.join(self.root, name, name, sample_name + '_{}_A1.mat'.format(experiment))
+                        if not os.path.exists(path):
+                            path = os.path.join(self.root, name, sample_name + '_{}_A1.mat'.format(experiment))
                     matlab_variable_dict = loadmat(path)
-                    data = matlab_variable_dict['emg']
-                    label = matlab_variable_dict['restimulus']
-                    label[np.where(label != 0)] += self.base_class_num[experiment]
-                    if self.data is None:
-                        self.data = data
-                        self.label = label
+                    stimulus = matlab_variable_dict['stimulus']
+                    # base_class_num = 0
+                    # if experiment == 'E2':
+                    #     base_class_num += 13
+                    # elif experiment == 'E3':
+                    #     base_class_num += 13 + 17
+                    # stimulus[np.where(stimulus != 0)] += base_class_num
+                    if label is None:
+                        label = stimulus
                     else:
-                        self.data = np.vstack((self.data, data))
-                        self.label = np.vstack((self.label, label))
+                        label = np.vstack((label, stimulus))
+                plt.figure()
+                plt.plot(label)
+                plt.show()
+                if self.label is None:
+                    self.label = {name: label}
+                else:
+                    self.label[name] = label
 
         # 巴特沃斯滤波处理
-        if butterWn is not None:
-            b, a = signal.butter(N=2, Wn=butterWn)
+        if is_filter:
+            fs = 2000.0
+            f0 = 50.0
+            Q = 30.0
+            b, a = signal.iirnotch(f0, Q, fs)
             self.data = signal.filtfilt(b, a, self.data, axis=0)
+            b, a = signal.butter(8, [20/fs, 900/fs], 'bandpass')
+            self.data = signal.filtfilt(b, a, self.data, axis=0)
+            # # todo
+            # fft_origin = fft(self.data[:, 0])
+            # fs = 2000.0
+            # f0 = 50.0
+            # Q = 30.0
+            # b, a = signal.iirnotch(f0, Q, fs)
+            # self.data[:, 0] = signal.filtfilt(b, a, self.data[:, 0], axis=0)
+            # b, a = signal.butter(8, [20 / fs, 900 / fs], 'bandpass')
+            # self.data[:, 0] = signal.filtfilt(b, a, self.data[:, 0], axis=0)
+            # fft_filter = fft(self.data[:, 0])
+            # # fft show origin
+            # plt.figure()
+            # plt.subplot(211)
+            # plt.plot(fft_origin)
+            # plt.subplot(212)
+            # plt.plot(fft_filter)
+            # plt.show()
+            # stop = 1
 
-        self.mean = np.mean(self.data, axis=0)
-        self.std = np.std(self.data, axis=0)
-        self.class_num = np.max(self.label) + 1  # take label 0 into account
+        # self.mean = np.mean(self.data, axis=0)
+        # self.std = np.std(self.data, axis=0)
+
         # segment the signals from label
         self.parsed_label = self.parse_label()
         # # 便于极大极小值归一化
@@ -105,21 +147,23 @@ class NinaProDataset(Dataset):
         return sample
 
     def parse_label(self):
-        # if self.split == 'valid':
-        #     self.overlap = 0
-        parsed_label = [[] for _ in range(self.class_num)]  # 初始化一个长度为class_num的二维列表
-        length = self.window_length
-        step = int(length * (1 - self.overlap))
-        begin = 0
-        end = length
-        while end < self.label.shape[0]:
-            segment = self.label[begin:end, 0]
-            # 说明该段不具备label的重叠，载入数据中
-            if len(np.unique(segment)) == 1:
-                label_id = self.label[begin, 0]
-                parsed_label[label_id].append([begin, end])
-            begin += step
-            end += step
+        if self.split == 'valid':
+            self.overlap = 0
+        for name in self.label:
+            label = self.label[name]
+            parsed_label = [[] for _ in range(self.class_num)]  # 初始化一个长度为class_num的二维列表
+            length = self.window_length
+            step = int(length * (1 - self.overlap))
+            begin = 0
+            end = length
+            while end < self.label.shape[0]:
+                segment = self.label[begin:end, 0]
+                # 说明该段不具备label的重叠，载入数据中
+                if len(np.unique(segment)) == 1:
+                    label_id = self.label[begin, 0]
+                    parsed_label[label_id].append([begin, end])
+                begin += step
+                end += step
         return parsed_label
 
     def min_max_signal(self):
@@ -130,10 +174,16 @@ class NinaProDataset(Dataset):
     def min_max_scalar(self):
         self.data = (self.data - self.min_signal) / (self.max_signal - self.min_signal)
 
-    def onehot(self, label_id):
-        label = np.zeros(self.class_num, dtype=float)
-        label[label_id] = 1
-        return label
+    @ staticmethod
+    def repetition_to_stimulus(repetition, base_class):
+        count = -1
+        for i in range(repetition.shape[0]):
+            if i >= 1:
+                if repetition[i-1] + repetition[i] == 1:
+                    count += 1
+            if repetition[i] != 0:
+                repetition[i] += base_class + count
+        return repetition
 
 
 class ToTensor(object):
@@ -258,10 +308,10 @@ class FeatureExtractor(object):
 
 if __name__ == '__main__':
     root = r'E:\Datasets\NinaproDataset'
-    cutoff_frequency = 45
+    cutoff_frequency = 10
     sampling_frequency = 100
     wn = 2 * cutoff_frequency / sampling_frequency
-    myDataset = NinaProDataset(root=root, split='valid', butterWn=wn, transform=Normalize())
+    myDataset = NinaProDataset(root=root, split='valid', is_filter=False, transform=Normalize())
     label_sampled = np.linspace(1, myDataset.class_num, myDataset.class_num)
     length_list = []
 
