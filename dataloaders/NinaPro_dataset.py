@@ -12,7 +12,7 @@ import re
 
 
 class NinaProDataset(Dataset):
-    def __init__(self, root=None, databases=['DB2'], experiments=['E1', 'E2', 'E3'], split='train',
+    def __init__(self, root=None, databases=['DB2'], experiments=['E1', 'E2', 'E3'], split='train', split_ratio=0.8,
                  random_sample=1024, window_length=128, overlap=0.6, transform=None, is_filter=False):
         super(NinaProDataset)
         # load parameters
@@ -25,52 +25,53 @@ class NinaProDataset(Dataset):
         self.transform = transform
         self.data = None
         self.label = None
-        self.base_class_num = {'E1': 13, 'E2': 17, 'E3': 22}
+        self.base_class_num = {'E1': 13, 'E2': 17, 'E3': 23}
         self.class_num = 0  # since take label 0 into account, beginning with 1
         for experiment_type in self.experiments:
             self.class_num += self.base_class_num[experiment_type]
 
+        # get raw label
         # choose database
         for database in self.databases:
             print('Processing ' + database)
             self.root = os.path.join(root, database)
             if not os.path.exists(self.root):
                 raise RuntimeError('The file path did not exist.')
-            # traverse patients
+            # split by train or valid
             sub_file_names = os.listdir(self.root)
+            if split == 'train' and split_ratio:
+                patients_num = int(len(sub_file_names) * split_ratio)
+                sub_file_names = sub_file_names[0:patients_num]
+            elif split == 'valid' and split_ratio:
+                patients_num = int(len(sub_file_names) * split_ratio)
+                sub_file_names = sub_file_names[patients_num:-1]
+            # traverse patients
             for name in sub_file_names:
                 print('\tProcessing entity ' + name)
                 sample_name = re.findall(r'_(s\d+)', name)[0]
                 # choose experiments
                 label = None  # collecting experiments
-                for experiment in self.experiments:
-                    if database == 'DB1':
-                        path = os.path.join(self.root, name, name, sample_name+'_A1_' + experiment + '.mat')
-                    else:
-                        path = os.path.join(self.root, name, name, sample_name + '_{}_A1.mat'.format(experiment))
-                        if not os.path.exists(path):
-                            path = os.path.join(self.root, name, sample_name + '_{}_A1.mat'.format(experiment))
+                for experiment_type in self.experiments:
+                    path = self.path_generator(name, sample_name, database, experiment_type)
                     matlab_variable_dict = loadmat(path)
+                    # Restimulus is better. however, not all database support
                     stimulus = matlab_variable_dict['stimulus']
                     # base_class_num = 0
-                    # if experiment == 'E2':
-                    #     base_class_num += 13
-                    # elif experiment == 'E3':
-                    #     base_class_num += 13 + 17
+                    # if experiment_type == 'E2':
+                    #     base_class_num += 12
+                    # elif experiment_type == 'E3':
+                    #     base_class_num += 12 + 17
                     # stimulus[np.where(stimulus != 0)] += base_class_num
                     if label is None:
                         label = stimulus
                     else:
                         label = np.vstack((label, stimulus))
-                plt.figure()
-                plt.plot(label)
-                plt.show()
                 if self.label is None:
                     self.label = {name: label}
                 else:
                     self.label[name] = label
 
-        # 巴特沃斯滤波处理
+        # filtering
         if is_filter:
             fs = 2000.0
             f0 = 50.0
@@ -98,16 +99,10 @@ class NinaProDataset(Dataset):
             # plt.show()
             # stop = 1
 
-        # self.mean = np.mean(self.data, axis=0)
-        # self.std = np.std(self.data, axis=0)
-
         # segment the signals from label
         self.parsed_label = self.parse_label()
-        # # 便于极大极小值归一化
-        self.min_signal, self.max_signal = self.min_max_signal()
-        # self.min_max_scalar()
 
-        # 训练集测试集划分
+        # set sample iteration in train or valid
         if self.split == 'train':
             self.length = random_sample
         elif self.split == 'valid':  # 将所有的信号段拼接在一起，便于getitem按索引读入
@@ -156,34 +151,25 @@ class NinaProDataset(Dataset):
             step = int(length * (1 - self.overlap))
             begin = 0
             end = length
-            while end < self.label.shape[0]:
-                segment = self.label[begin:end, 0]
+            while end < label.shape[0]:
+                segment = label[begin:end, 0]
                 # 说明该段不具备label的重叠，载入数据中
                 if len(np.unique(segment)) == 1:
-                    label_id = self.label[begin, 0]
+                    label_id = label[begin, 0]
                     parsed_label[label_id].append([begin, end])
                 begin += step
                 end += step
+            self.label[name] = parsed_label
         return parsed_label
 
-    def min_max_signal(self):
-        min_signal = np.min(self.data)
-        max_signal = np.max(self.data)
-        return min_signal, max_signal
-
-    def min_max_scalar(self):
-        self.data = (self.data - self.min_signal) / (self.max_signal - self.min_signal)
-
-    @ staticmethod
-    def repetition_to_stimulus(repetition, base_class):
-        count = -1
-        for i in range(repetition.shape[0]):
-            if i >= 1:
-                if repetition[i-1] + repetition[i] == 1:
-                    count += 1
-            if repetition[i] != 0:
-                repetition[i] += base_class + count
-        return repetition
+    def path_generator(self, name, sample_name, database, experiment_type):
+        if database == 'DB1':  # DB2, DB3 has different file names from DB1
+            path = os.path.join(self.root, name, name, sample_name + '_A1_{}.mat'.format(experiment_type))
+        else:  # some of the DB2 files have different file structure
+            path = os.path.join(self.root, name, name, sample_name + '_{}_A1.mat'.format(experiment_type))
+            if not os.path.exists(path):
+                path = os.path.join(self.root, name, sample_name + '_{}_A1.mat'.format(experiment_type))
+        return path
 
 
 class ToTensor(object):
@@ -311,7 +297,7 @@ if __name__ == '__main__':
     cutoff_frequency = 10
     sampling_frequency = 100
     wn = 2 * cutoff_frequency / sampling_frequency
-    myDataset = NinaProDataset(root=root, split='valid', is_filter=False, transform=Normalize())
+    myDataset = NinaProDataset(root=root, split='train', is_filter=False, transform=Normalize())
     label_sampled = np.linspace(1, myDataset.class_num, myDataset.class_num)
     length_list = []
 
