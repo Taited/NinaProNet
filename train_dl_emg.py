@@ -1,9 +1,8 @@
 from util.visualization.visualize_loss import loss_visualize
 from prefetch_generator import BackgroundGenerator
-from dataloaders.NinaPro_dataset import *
+from dataloaders.EMG_dataset import *
 from util.parse_config import parse_config
 from torch.utils.data import DataLoader
-from losses.loss_function import FocalLossV2, FocalLoss
 from networks.NetFactory import NetFactory
 import torchvision.transforms as tt
 import torch.optim as optim
@@ -58,15 +57,12 @@ def plot_acc(train_class_accuracy, valid_class_accuracy, net_name, batch_size):
 def train(config):
     # load data config
     config_data = config['data']
-    cutoff_frequency = config_data['cutoff_frequency']
-    sampling_frequency = config_data['sampling_frequency']
-    # wn = 2 * cutoff_frequency / sampling_frequency
-    wn = None
     window_length = config_data['window_length']
     batch_size = config_data['batch_size']
     iter_num = config_data['iter_num']
     root = config_data['data_root']
     overlap = config_data['overlap']
+    channels = config_data['channels']
 
     # load net config
     config_net = config['network']
@@ -83,24 +79,22 @@ def train(config):
     best_acc = config_train['best_accuracy']
 
     # initiate dataset
-    train_dataset = NinaProDataset(root=root,
-                                   split='train',
-                                   butterWn=wn,
-                                   window_length=window_length,
-                                   random_sample=iter_num,
-                                   overlap=overlap,
-                                   transform=tt.Compose([Normalize(), ToTensor()]))
-    valid_dataset = NinaProDataset(root=root,
-                                   split='valid',
-                                   butterWn=wn,
-                                   window_length=window_length,
-                                   transform=tt.Compose([Normalize(), ToTensor()]))
-    trainLoader = DataLoaderX(train_dataset, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True)
-    validLoader = DataLoaderX(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True)
+    train_dataset = EMGDataset(root=root,
+                               split='train',
+                               window_length=window_length,
+                               random_sample=iter_num,
+                               overlap=overlap,
+                               transform=tt.Compose([Normalize(), ToTensor()]))
+    valid_dataset = EMGDataset(root=root,
+                               split='valid',
+                               window_length=window_length,
+                               transform=tt.Compose([Normalize(), ToTensor()]))
+    trainLoader = DataLoaderX(train_dataset, batch_size=batch_size, shuffle=True, num_workers=5, pin_memory=True)
+    validLoader = DataLoaderX(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=5, pin_memory=True)
 
     # initiate net
     net_class = NetFactory.create(net_name)
-    net = net_class(base_features=base_feature_num, class_num=train_dataset.class_num)
+    net = net_class(base_features=base_feature_num, class_num=train_dataset.class_num, input_channels=channels)
     net = net.to(device)
     if config_train['load_weight']:
         weight = torch.load(config_train['model_path'], map_location=lambda storage, loc: storage)
@@ -124,7 +118,6 @@ def train(config):
             evaluator.get_data(prediction, label.squeeze(1).squeeze(1))
             train_loss = loss_func(prediction, label.squeeze(1).squeeze(1))
             train_batch_loss += train_loss
-            # train_loss = torch.abs(train_loss - 0.4) + 0.4  # trick: flood loss
             optimizer.zero_grad()  # 梯度归零
             train_loss.backward()  # 反向传播
             optimizer.step()  # 更新参数
@@ -156,7 +149,6 @@ def train(config):
         epoch_metrics = {'train': train_batch_loss, 'valid': valid_batch_loss,
                          'train_accuracy': train_accuracy, 'valid_accuracy': valid_accuracy}
         show_loss.plot_loss(epoch, epoch_metrics)
-
         # plot final class accuracy
         if epoch == epochs - 1:
             plot_acc(train_class_accuracy, valid_class_accuracy, net_name, batch_size)
