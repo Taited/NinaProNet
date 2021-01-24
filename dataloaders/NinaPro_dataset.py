@@ -55,13 +55,7 @@ class NinaProDataset(Dataset):
                     path = self.path_generator(name, sample_name, database, experiment_type)
                     matlab_variable_dict = loadmat(path)
                     # Restimulus is better. however, not all database support
-                    stimulus = matlab_variable_dict['stimulus']
-                    # base_class_num = 0
-                    # if experiment_type == 'E2':
-                    #     base_class_num += 12
-                    # elif experiment_type == 'E3':
-                    #     base_class_num += 12 + 17
-                    # stimulus[np.where(stimulus != 0)] += base_class_num
+                    stimulus = matlab_variable_dict['restimulus']
                     if label is None:
                         label = stimulus
                     else:
@@ -168,6 +162,7 @@ class NinaProDataset(Dataset):
         else:  # some of the DB2 files have different file structure
             path = os.path.join(self.root, name, name, sample_name + '_{}_A1.mat'.format(experiment_type))
             if not os.path.exists(path):
+                print('qwq')
                 path = os.path.join(self.root, name, sample_name + '_{}_A1.mat'.format(experiment_type))
         return path
 

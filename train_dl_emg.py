@@ -169,6 +169,6 @@ def train(config):
 
 
 if __name__ == '__main__':
-    config_file = 'config/train_dl.txt'
+    config_file = 'config/train_dl_emg.txt'
     cfg = parse_config(config_file)
     train(config=cfg)

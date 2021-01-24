@@ -14,7 +14,7 @@ class_num               = auto
 
 [training]
 load_weight        = True
-model_path         = weights/train_model_0.6022626377947844.pkl
+model_path         = weights/train_model_NinaProNet_0.6108600154498641.pkl
 learning_rate      = 1e-5
 decay              = 1e-4
 maximal_epoch      = 300

@@ -15,3 +15,4 @@ if __name__ == '__main__':
                 file.extractall(path=data_root[:-4])
                 file.close()
                 os.remove(data_root)
+        print(database_name + ' done.')
